@@ -89,6 +89,10 @@ export function Workspace({
 
   function update(index: number, patch: Partial<Draft>) {
     setDrafts((current) => current.map((draft, draftIndex) => (draftIndex === index ? { ...draft, ...patch } : draft)));
+    // Checking and hints describe the exact drafts that were present when they
+    // were calculated. Do not leave that derived feedback visible after an edit.
+    setResult(null);
+    setHint(null);
   }
 
   function addStep() {

@@ -1,6 +1,8 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import { App } from "../src/ui/App";
+
+afterEach(cleanup);
 
 describe("App defaults", () => {
   it("renders audio and voice switches off", () => {
@@ -24,5 +26,27 @@ describe("App defaults", () => {
     const xs = [...trail.querySelectorAll("text")].map((node) => Number(node.getAttribute("x")));
     const gaps = xs.slice(1).map((value, index) => value - xs[index]);
     expect(new Set(gaps)).toEqual(new Set([120]));
+  });
+
+  it("invalidates checked feedback and hints as soon as a step expression or reason changes", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("problem-E01"));
+    fireEvent.click(screen.getByRole("button", { name: "Add step" }));
+    fireEvent.change(screen.getByLabelText("Numerator"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("Denominator"), { target: { value: "4" } });
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "scale" } });
+    fireEvent.change(screen.getByLabelText("Factor"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Check my steps" }));
+    expect(screen.getByTestId("feedback").getAttribute("data-status")).toBe("complete");
+    expect(screen.getByText("Completed for this session.")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Numerator"), { target: { value: "3" } });
+    expect(screen.getByTestId("feedback").getAttribute("data-status")).toBe("idle");
+    expect(screen.queryByText("Completed for this session.")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show a valid next step" }));
+    expect(screen.getByTestId("hint")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Reason"), { target: { value: "equivalentRewrite" } });
+    expect(screen.queryByTestId("hint")).toBeNull();
   });
 });

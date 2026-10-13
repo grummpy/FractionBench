@@ -200,7 +200,10 @@ export function enumerateSignatures(skill: Skill): string[] {
       }
     }
   }
-  return signatures;
+  // A written fraction can be equivalent to another generated input. The
+  // session-avoidance contract uses canonical signatures, so expose the same
+  // unique catalog here rather than overstating the available variety.
+  return [...new Set(signatures)];
 }
 
 function roll(skill: Skill, rng: () => number): Problem {

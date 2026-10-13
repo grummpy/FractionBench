@@ -6,6 +6,13 @@ import { enumerateSignatures, fallbackPool, generatePair, selectPracticeSkill, w
 
 const SKILLS: Skill[] = ["equivalentScaling", "simplification", "equalDenominatorAddition", "unlikeDenominatorAddition"];
 
+function expectSolvableInBounds(problem: ReturnType<typeof generatePair>[number]) {
+  expect(withinPracticeBounds(problem)).toBe(true);
+  const result = checkWork({ start: problem.start, steps: problem.reference, completion: problem.completion });
+  expect(result.complete).toBe(true);
+  expect(result.steps.every((step) => step.status === "verified")).toBe(true);
+}
+
 describe("practice generation", () => {
   it("is deterministic and returns two distinct in-bounds problems", () => {
     for (const skill of SKILLS) {
@@ -15,11 +22,33 @@ describe("practice generation", () => {
       expect(new Set(first.map((problem) => problem.signature)).size).toBe(2);
       for (const problem of first) {
         expect(problem.signature).not.toBe("1/2->4");
-        expect(withinPracticeBounds(problem)).toBe(true);
-        const result = checkWork({ start: problem.start, steps: problem.reference, completion: problem.completion });
-        expect(result.complete).toBe(true);
-        expect(result.steps.every((step) => step.status === "verified")).toBe(true);
+        expectSolvableInBounds(problem);
       }
+    }
+  });
+
+  it("keeps every generated pair distinct, in bounds, and checker-solvable across a deterministic seed corpus", () => {
+    for (const skill of SKILLS) {
+      for (let seed = 0; seed < 256; seed += 1) {
+        const first = generatePair({ skill, seed, avoid: [] });
+        const second = generatePair({ skill, seed, avoid: [] });
+        expect(first.map((problem) => problem.signature)).toEqual(second.map((problem) => problem.signature));
+        expect(new Set(first.map((problem) => problem.signature)).size).toBe(2);
+        first.forEach(expectSolvableInBounds);
+      }
+    }
+  });
+
+  it("has a unique, in-bounds, checker-solvable catalog for every practice skill", () => {
+    for (const skill of SKILLS) {
+      const signatures = enumerateSignatures(skill);
+      expect(signatures.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(signatures).size).toBe(signatures.length);
+
+      const pair = generatePair({ skill, seed: 19, avoid: [] });
+      pair.forEach(expectSolvableInBounds);
+      fallbackPool[skill].forEach(expectSolvableInBounds);
+      expect(new Set(fallbackPool[skill].map((problem) => problem.signature)).size).toBe(fallbackPool[skill].length);
     }
   });
 
